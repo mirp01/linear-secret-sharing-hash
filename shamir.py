@@ -82,7 +82,7 @@ class ShamirSecretSharing:
         
         return shares
     
-def reconstruct_secret(self, shares: List[List[Tuple[int, int]]]) -> bytes:
+    def reconstruct_secret(self, shares: List[List[Tuple[int, int]]]) -> bytes:
         if not shares:
             raise ValueError("Null shares provided")
         
