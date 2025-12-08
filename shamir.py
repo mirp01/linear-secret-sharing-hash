@@ -42,7 +42,7 @@ class ShamirSecretSharing:
     
     # Split secret into shares
 
-    def split_secret(self, secret: bytes, n: int, k: int, random_x: bool = True) -> List[List[Tuple[int, int]]]:
+    def split_secret(self, secret: bytes, n: int, k: int, random_x: bool = False) -> List[List[Tuple[int, int]]]:
         if k > n or k < 2:
             raise ValueError("Invalid parameters: require 2 <= k <= n")
         
@@ -63,7 +63,10 @@ class ShamirSecretSharing:
             shares_for_byte = []
             
             if random_x:
-                x_values = [random.randint(1, self.prime - 1) for _ in range(n)]
+                if self.prime - 1 < n:
+                    raise ValueError("Prime too small to generate unique x values for the requested number of shares")
+                # sample unique x values from 1..prime-1
+                x_values = random.sample(range(1, self.prime), n)
             else:
                 x_values = list(range(1, n + 1))
             
