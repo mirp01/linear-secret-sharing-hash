@@ -7,12 +7,16 @@ from typing import List, Tuple
     This module provides functionality to split a secret into multiple shares
     such that only a specified threshold of shares is required to reconstruct the secret.
 
+    q -> large prime number defining the finite field F_q
+    t -> threshold number of shares needed for reconstruction
+    n -> total number of shares to generate
+
 """
 
 class ShamirSecretSharing:
     
-    def __init__(self, prime: int = None):
-        self.prime = prime or 61 * 1000000007  # Large prime
+    def __init__(self, q: int = None):
+        self.q = q or 61 * 1000000007  # Large q
 
     # Math stuff
     @profile
@@ -37,7 +41,7 @@ class ShamirSecretSharing:
     def _evaluate_polynomial(self, coeffs: List[int], x: int) -> int:
         result = 0
         for coeff in reversed(coeffs):
-            result = (result * x + coeff) % self.prime
+            result = (result * x + coeff) % self.q
         return result
     
     # Split secret into shares
@@ -53,22 +57,16 @@ class ShamirSecretSharing:
         byte_shares = []  # One entry per byte of secret
         
         for byte_value in secret:
-            if byte_value >= self.prime:
+            if byte_value >= self.q:
                 raise ValueError(f"Byte value too large for field")
             
-            # Generate random coefficients
-            # P(x) = byte_value + a1*x + a2*x^2 + ... + a(k-1)*x^(k-1)
-            coeffs = [byte_value] + [random.randint(0, self.prime - 1) for _ in range(k - 1)]
+            # Generate random coefficients for P(x) = byte_value + a1*x + a2*x^2 + ... + a(t-1)*x^(t-1)
+
+            coeffs = [byte_value] + [random.randint(0, self.q - 1) for _ in range(t - 1)]
             
             shares_for_byte = []
             
-            if random_x:
-                if self.prime - 1 < n:
-                    raise ValueError("Prime too small to generate unique x values for the requested number of shares")
-                # sample unique x values from 1..prime-1
-                x_values = random.sample(range(1, self.prime), n)
-            else:
-                x_values = list(range(1, n + 1))
+            x_values = list(range(1, n + 1))
             
             for x in x_values:
                 y = self._evaluate_polynomial(coeffs, x)
@@ -94,28 +92,30 @@ class ShamirSecretSharing:
         reconstructed_bytes = []
         
         # Reconstruct each byte separately
+
         for byte_index in range(num_bytes):
             byte_shares = [share[byte_index] for share in shares]
             
             # Use Lagrange interpolation to find P(0) using modular arithmetic
+
             secret = 0
-            
             for j, (xj, yj) in enumerate(byte_shares):
-                # Calculate Lagrange basis polynomial at x=0
+                
                 numerator = 1
                 denominator = 1
                 
                 for i, (xi, _) in enumerate(byte_shares):
                     if i != j:
-                        numerator = (numerator * (0 - xi)) % self.prime
-                        denominator = (denominator * (xj - xi)) % self.prime
+                        numerator = (numerator * (0 - xi)) % self.q
+                        denominator = (denominator * (xj - xi)) % self.q
                 
-                basis = (numerator * self._mod_inverse(denominator, self.prime)) % self.prime
-                secret = (secret + yj * basis) % self.prime
+                basis = (numerator * self._mod_inverse(denominator, self.q)) % self.q
+                secret = (secret + yj * basis) % self.q
             
-            secret = secret % self.prime
+            secret = secret % self.q
             
-            # Ensure byte is in valid range (0-255)
+            # Ensure byte is in valid range
+
             if secret > 255:
                 secret = secret % 256
             
