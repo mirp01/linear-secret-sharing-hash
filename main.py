@@ -9,12 +9,12 @@ if __name__ == "__main__":
     
     # Example 1: Text secret
     print("=== Example 1: Text Secret ===")
-    secret_text = "HelloWorld"
+    secret_text = "QuesoManchego"
     print(f"Original secret: {secret_text}")
     
     n_shares = 7
     threshold = 4
-    shares = sss.split_secret(secret_text, n_shares, threshold, random_x=False)
+    shares = sss.split_secret(secret_text, n_shares, threshold)
     print(f"Generated {n_shares} shares (need {threshold} to reconstruct)")
     print(f"Each share has {len(shares[0])} byte-pairs")
     
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     secret_bytes = b"\x01\x02\x03\x04\x05"
     print(f"Original secret (hex): {secret_bytes.hex()}")
     
-    shares_binary = sss.split_secret(secret_bytes, 5, 3, random_x=True)
+    shares_binary = sss.split_secret(secret_bytes, 5, 3)
     print(f"Generated 5 shares with random x-values")
     
     reconstructed3 = sss.reconstruct_secret(shares_binary[:3])
