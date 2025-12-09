@@ -15,7 +15,7 @@ class ShamirSecretSharing:
         self.prime = prime or 61 * 1000000007  # Large prime
 
     # Math stuff
-
+    @profile
     def _mod_inverse(self, a: int, m: int) -> int:
         if a < 0:
             a = (a % m + m) % m
@@ -41,7 +41,7 @@ class ShamirSecretSharing:
         return result
     
     # Split secret into shares
-
+    @profile
     def split_secret(self, secret: bytes, n: int, k: int, random_x: bool = False) -> List[List[Tuple[int, int]]]:
         if k > n or k < 2:
             raise ValueError("Invalid parameters: require 2 <= k <= n")
@@ -84,7 +84,8 @@ class ShamirSecretSharing:
             shares.append(share)
         
         return shares
-    
+        
+    @profile
     def reconstruct_secret(self, shares: List[List[Tuple[int, int]]]) -> bytes:
         if not shares:
             raise ValueError("Null shares provided")
