@@ -42,7 +42,7 @@ class ShamirSecretSharing:
     
     # Split secret into shares
 
-    def split_secret(self, secret: bytes, n: int, k: int, random_x: bool = False) -> List[List[Tuple[int, int]]]:
+    def split_secret(self, secret: bytes, n: int, k: int) -> List[List[Tuple[int, int]]]:
         if k > n or k < 2:
             raise ValueError("Invalid parameters: require 2 <= k <= n")
         
@@ -56,19 +56,13 @@ class ShamirSecretSharing:
             if byte_value >= self.prime:
                 raise ValueError(f"Byte value too large for field")
             
-            # Generate random coefficients
-            # P(x) = byte_value + a1*x + a2*x^2 + ... + a(k-1)*x^(k-1)
+            # Generate random coefficients for P(x) = byte_value + a1*x + a2*x^2 + ... + a(k-1)*x^(k-1)
+            
             coeffs = [byte_value] + [random.randint(0, self.prime - 1) for _ in range(k - 1)]
             
             shares_for_byte = []
             
-            if random_x:
-                if self.prime - 1 < n:
-                    raise ValueError("Prime too small to generate unique x values for the requested number of shares")
-                # sample unique x values from 1..prime-1
-                x_values = random.sample(range(1, self.prime), n)
-            else:
-                x_values = list(range(1, n + 1))
+            x_values = list(range(1, n + 1))
             
             for x in x_values:
                 y = self._evaluate_polynomial(coeffs, x)
@@ -97,10 +91,10 @@ class ShamirSecretSharing:
             byte_shares = [share[byte_index] for share in shares]
             
             # Use Lagrange interpolation to find P(0) using modular arithmetic
+
             secret = 0
-            
             for j, (xj, yj) in enumerate(byte_shares):
-                # Calculate Lagrange basis polynomial at x=0
+                
                 numerator = 1
                 denominator = 1
                 
@@ -114,7 +108,8 @@ class ShamirSecretSharing:
             
             secret = secret % self.prime
             
-            # Ensure byte is in valid range (0-255)
+            # Ensure byte is in valid range
+
             if secret > 255:
                 secret = secret % 256
             
