@@ -4,6 +4,7 @@ import statistics
 from typing import List, Tuple
 import matplotlib.pyplot as plt
 from shamir import ShamirSecretSharing as SimpleShamir
+from shamir_with_hash import LSSSWithHashing as HashedShamir
 
 class PerformanceBenchmark:
     """
@@ -11,8 +12,14 @@ class PerformanceBenchmark:
     Generates plots and summary statistics.
     """
     
-    def __init__(self):
-        self.shamir = SimpleShamir()
+    def __init__(self, implementation: "simple"):
+        if implementation == "simple":
+            self.shamir = SimpleShamir()
+        else:
+            self.shamir = HashedShamir()
+        
+        self.implementation = implementation
+
         self.results = {
             'secret_size': [],
             'n_shares': [],
@@ -43,19 +50,20 @@ class PerformanceBenchmark:
         times = []
         for _ in range(iterations):
             start = time.perf_counter()
-            _ = self.shamir.reconstruct_secret(shares)
+            if self.implementation == "simple":
+                _ = self.shamir.reconstruct_secret(shares)
+            #else:
+                #sss_hash = HashedShamir()
+
             end = time.perf_counter()
             times.append((end - start) * 1000)  # Convert to ms
         
         return min(times), statistics.mean(times), max(times)
     
     def benchmark_secret_size_scaling(self, secret_sizes: List[int], n: int = 10, t: int = 5):
-        """
-        Benchmark how performance scales with secret size.
-        """
-        print("\n" + "="*70)
+        print("\n" + "-"*70)
         print("BENCHMARK 1: Secret Size Scaling")
-        print("="*70)
+        print("-"*70)
         print(f"Parameters: n={n}, t={t}")
         print(f"Testing secret sizes: {secret_sizes}\n")
         
@@ -86,9 +94,9 @@ class PerformanceBenchmark:
         """
         Benchmark how performance scales with threshold t.
         """
-        print("\n" + "="*70)
+        print("\n" + "-"*70)
         print("BENCHMARK 2: Threshold Scaling")
-        print("="*70)
+        print("-"*70)
         print(f"Parameters: secret_size={secret_size}, n={n}")
         print(f"Testing thresholds: {thresholds}\n")
         
@@ -106,7 +114,12 @@ class PerformanceBenchmark:
             shares = self.shamir.split_secret(secret, n, t)
             
             # Benchmart reconstruction
-            min_recon, avg_recon, max_recon = self.benchmark_reconstruction(shares[:t])
+            if self.implementation == "simple":
+                min_recon, avg_recon, max_recon = self.benchmark_reconstruction(shares[:t])
+            else:
+                sss_hash = HashedShamir()
+                shares_hashing, hash_func = sss_hash.split_secret(secret, shares, threshold)
+                reconstructed_hash = sss_hash.reconstruct_secret(shares_hashing[:threshold], hash_func)
             
             print(f"Threshold t: {t:2d}/{n}")
             print(f"  Sharing:       min={min_share:8.4f}ms  avg={avg_share:8.4f}ms  max={max_share:8.4f}ms")
@@ -117,9 +130,9 @@ class PerformanceBenchmark:
         """
         Benchmark how performance scales with number of shares n.
         """
-        print("\n" + "="*70)
+        print("\n" + "-"*70)
         print("BENCHMARK 3: Share Count Scaling")
-        print("="*70)
+        print("-"*70)
         print(f"Parameters: secret_size={secret_size}, t={t}")
         print(f"Testing share counts: {share_counts}\n")
         
@@ -145,7 +158,6 @@ class PerformanceBenchmark:
             print()
     
     def plot_secret_size_scaling(self):
-        """Plot performance vs secret size"""
         secret_sizes = [s for s in self.results['secret_size']]
         share_times = [t for t in self.results['share_time_ms']]
         recon_times = [t for t in self.results['reconstruct_time_ms']]
@@ -192,7 +204,6 @@ class PerformanceBenchmark:
         print(f"\n✓ Results exported to {filename}")
     
     def print_summary(self):
-        """Print summary statistics"""
         if not self.results['share_time_ms']:
             print("No results to summarize")
             return

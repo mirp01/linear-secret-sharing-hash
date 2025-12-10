@@ -1,5 +1,5 @@
 from shamir import ShamirSecretSharing
-from shamir_with_hash import LinearSecretSharingWithHashing
+from shamir_with_hash import LSSSWithHashing
 
 ''' Example usage of Shamir's Secret Sharing and Linear Secret Sharing with Hashing '''
 
@@ -45,3 +45,31 @@ if __name__ == "__main__":
     reconstruction3 = sss.reconstruct_secret(shares_binary[:3])
     print(f"Reconstructed secret (hex): {reconstruction3.hex()}")
     print(f"Match: {reconstruction3 == secret_bytes}")
+
+    print("\nWITH HASHING-BASED SCHEME")
+    
+    # Initialize the hashing-based scheme
+    sss_hash = LSSSWithHashing()
+    
+    # Test 1: Text Secret
+    print("=== EXAMPLE 1: Text Secret ===")
+    secret_text = "QuesoManchego"
+    n_shares = 7
+    threshold = 4
+    
+    print(f"Original secret: {secret_text}")
+    print(f"Total shares: {n_shares}, Threshold: {threshold}\n")
+    
+    # Split secret
+    shares, hash_func = sss_hash.split_secret(secret_text, n_shares, threshold)
+    
+    # Display first share details
+    print(f"First share details (showing first 5 bytes):")
+    print(shares[0][:5])
+    print()
+    
+    # Reconstruct with exactly threshold shares
+    reconstructed = sss_hash.reconstruct_secret(shares[:threshold], hash_func)
+    print(f"Reconstructed secret: {reconstructed.decode('utf-8')}")
+    print(f"Match: {reconstructed.decode('utf-8') == secret_text}\n")
+    

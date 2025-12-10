@@ -3,12 +3,12 @@ import random
 from typing import List, Tuple
 
 
-class LinearSecretSharingWithHashing:
+class LSSSWithHashing:
     
     def __init__(self, code_rate: float = 0.5, security_param: int = 128):
         self.code_rate = code_rate
         self.security_param = security_param
-        self.prime = 2**256 - 2**224 + 2**192 + 2**128 - 1
+        self.q = 2**256 - 2**224 + 2**192 + 2**128 - 1
     
     def _mod_inverse(self, a: int, m: int) -> int:
         if a < 0:
@@ -29,60 +29,45 @@ class LinearSecretSharingWithHashing:
     def _evaluate_polynomial(self, coeffs: List[int], x: int) -> int:
         result = 0
         for coeff in reversed(coeffs):
-            result = (result * x + coeff) % self.prime
+            result = (result * x + coeff) % self.q
         return result
     
     def _sample_preimage(self, secret: List[int], hash_func: HashFunction) -> List[int]:
-        k = hash_func.k
+        t = hash_func.t
         
-        # Generate random element in kernel of hash function
-        # For efficiency, we sample random x and adjust
-        x = [random.randint(0, self.prime - 1) for _ in range(k)]
+        x = [random.randint(0, self.q - 1) for _ in range(t)]
         
-        # Compute h(x) and adjust to get secret
         h_x = hash_func.hash(x)
         
-        # Compute adjustment needed: secret - h(x)
-        adjustment = [(secret[i] - h_x[i]) % self.prime for i in range(len(secret))]
+        adjustment = [(secret[i] - h_x[i]) % self.q for i in range(len(secret))]
+
+        #UNFINISHED
         
-        # Add adjustment back (this is a simplification for implementation)
-        # In practice, we'd solve the linear system, but for this demo:
         return x
     
-    def split_secret_with_hashing(self, secret: bytes, n: int, k: int,
-                                   random_x: bool = True) -> Tuple[List[List[Tuple[int, int]]], HashFunction]:
-        if k > n:
-            raise ValueError("Threshold k cannot be greater than total shares n")
-        if k < 2:
-            raise ValueError("Threshold must be at least 2")
+    def split_secret(self, secret: bytes, n: int, t: int) -> Tuple[List[List[Tuple[int, int]]], HashFunction]:
+        if t >  n or t < 2:
+            raise ValueError("Invalid parameters")
         
-        # Convert secret to bytes
         if isinstance(secret, str):
             secret = secret.encode('utf-8')
         
-        # Initialize universal hash function
-        # Input dimension k_dim and output dimension l_dim are parameters
-        k_dim = max(k, 8)  # Input dimension
-        l_dim = len(secret)  # Output dimension (one per byte)
-        hash_func = HashFunction(k_dim, l_dim, self.prime)
+        t_dim = max(t, 8) 
+        l_dim = len(secret) 
+        hash_func = HashFunction(t_dim, l_dim, self.q)
         
         # Process each byte
         byte_shares = []
         
         for byte_value in secret:
-            if byte_value >= self.prime:
+            if byte_value >= self.q:
                 raise ValueError(f"Byte value {byte_value} too large for field")
             
-            # Generate random coefficients for polynomial
-            coeffs = [byte_value] + [random.randint(0, self.prime - 1) for _ in range(k - 1)]
+            coeffs = [byte_value] + [random.randint(0, self.q - 1) for _ in range(t - 1)]
             
-            # Generate shares for this byte
             shares_for_byte = []
             
-            if random_x:
-                x_values = [random.randint(1, self.prime - 1) for _ in range(n)]
-            else:
-                x_values = list(range(1, n + 1))
+            x_values = list(range(1, n + 1))
             
             for x in x_values:
                 y = self._evaluate_polynomial(coeffs, x)
@@ -90,7 +75,6 @@ class LinearSecretSharingWithHashing:
             
             byte_shares.append(shares_for_byte)
         
-        # Reorganize shares
         organized_shares = []
         for share_index in range(n):
             share = []
@@ -100,19 +84,16 @@ class LinearSecretSharingWithHashing:
         
         return organized_shares, hash_func
     
-    def reconstruct_secret_with_hashing(self, shares: List[List[Tuple[int, int]]],
-                                        hash_func: HashFunction) -> bytes:
+    def reconstruct_secret(self, shares: List[List[Tuple[int, int]]], hash_func: HashFunction) -> bytes:
         if not shares:
-            raise ValueError("At least one share is required")
+            raise ValueError("Null shares provided")
         
         num_bytes = len(shares[0])
         reconstructed_bytes = []
         
-        # Reconstruct each byte separately
         for byte_index in range(num_bytes):
             byte_shares = [share[byte_index] for share in shares]
             
-            # Lagrange interpolation to find P(0)
             secret = 0
             
             for j, (xj, yj) in enumerate(byte_shares):
@@ -121,13 +102,13 @@ class LinearSecretSharingWithHashing:
                 
                 for i, (xi, _) in enumerate(byte_shares):
                     if i != j:
-                        numerator = (numerator * (0 - xi)) % self.prime
-                        denominator = (denominator * (xj - xi)) % self.prime
+                        numerator = (numerator * (0 - xi)) % self.q
+                        denominator = (denominator * (xj - xi)) % self.q
                 
-                basis = (numerator * self._mod_inverse(denominator, self.prime)) % self.prime
-                secret = (secret + yj * basis) % self.prime
+                basis = (numerator * self._mod_inverse(denominator, self.q)) % self.q
+                secret = (secret + yj * basis) % self.q
             
-            secret = secret % self.prime
+            secret = secret % self.q
             
             if secret > 255:
                 secret = secret % 256
